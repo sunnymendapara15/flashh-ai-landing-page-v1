@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import './App.css';
 
 const navLinks = [
@@ -94,7 +95,58 @@ const faqs = [
   }
 ];
 
+const initialMotion = { x: 0, y: 0, scale: 0 };
+
 function App() {
+  const [heroMotion, setHeroMotion] = useState(initialMotion);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const handleMotionPreference = (event) => setPrefersReducedMotion(event.matches);
+    setPrefersReducedMotion(mediaQuery.matches);
+    mediaQuery.addEventListener('change', handleMotionPreference);
+    return () => mediaQuery.removeEventListener('change', handleMotionPreference);
+  }, []);
+
+  const handleHeroPointerMove = (event) => {
+    if (prefersReducedMotion) {
+      return;
+    }
+    const rect = event.currentTarget.getBoundingClientRect();
+    const offsetX = (event.clientX - (rect.left + rect.width / 2)) / (rect.width / 2);
+    const offsetY = (event.clientY - (rect.top + rect.height / 2)) / (rect.height / 2);
+    const normalizedX = Math.max(Math.min(offsetX, 1), -1);
+    const normalizedY = Math.max(Math.min(offsetY, 1), -1);
+    const magnitude = Math.sqrt(normalizedX * normalizedX + normalizedY * normalizedY);
+    const scale = Math.min(0.05, magnitude * 0.05);
+    setHeroMotion({ x: normalizedX, y: normalizedY, scale });
+  };
+
+  const resetHeroMotion = () => {
+    setHeroMotion({ ...initialMotion });
+  };
+
+  const motionStyles = prefersReducedMotion
+    ? { panel: {}, gradient: {}, badge: {}, actions: {} }
+    : {
+        panel: {
+          transform: `translate3d(${heroMotion.x * 18}px, ${heroMotion.y * 12}px, 0) scale(${1 + heroMotion.scale})`
+        },
+        gradient: {
+          transform: `translate3d(${heroMotion.x * 10}px, ${heroMotion.y * 8}px, 0)`
+        },
+        badge: {
+          transform: `translate3d(${heroMotion.x * 12}px, ${heroMotion.y * 12}px, 0) scale(${1 + heroMotion.scale / 2})`
+        },
+        actions: {
+          transform: `translate3d(${heroMotion.x * 4}px, ${heroMotion.y * 4}px, 0)`
+        }
+      };
+
   return (
     <div className="app-shell">
       <header className="navbar">
@@ -116,7 +168,15 @@ function App() {
       </header>
 
       <main>
-        <section className="hero" id="product">
+        <section
+          className="hero"
+          id="product"
+          onPointerMove={handleHeroPointerMove}
+          onPointerLeave={resetHeroMotion}
+          role="region"
+          aria-label="Interactive hero"
+        >
+          <div className="hero-gradient-layer" style={motionStyles.gradient} aria-hidden="true" />
           <div className="hero-content">
             <p className="eyebrow">Describe your idea, build workflows</p>
             <h1>
@@ -126,7 +186,7 @@ function App() {
               From marketing briefs to ops playbooks, Flashh combines refined prompts with deep automation logic and
               delivers polished, production-ready workflows in moments.
             </p>
-            <div className="hero-actions">
+            <div className="hero-actions" style={motionStyles.actions}>
               <button className="primary-btn" type="button">
                 Describe my idea
               </button>
@@ -135,7 +195,7 @@ function App() {
               </button>
             </div>
           </div>
-          <div className="hero-panel" aria-label="Live workflow example">
+          <div className="hero-panel" style={motionStyles.panel} aria-label="Live workflow preview">
             <div className="panel-heading">Live workflow preview</div>
             <div className="panel-body">
               <p className="panel-title">Idea: Launch a new product teaser</p>
@@ -152,6 +212,10 @@ function App() {
                 See more →
               </button>
             </div>
+          </div>
+          <div className="hero-ambient-badge" style={motionStyles.badge} aria-hidden="true">
+            <p>Ideas → Workflows</p>
+            <span>Move your cursor to feel the motion.</span>
           </div>
         </section>
 
